@@ -4,7 +4,7 @@
 
 manager:
   name: eSim Tool Manager
-  version: "1.2.2"
+  version: "1.2.3"
   state_file: ".esim_tm_state.json"
   log_dir: "logs"
   install_root_env: "ESIM_TM_HOME"
@@ -88,6 +88,10 @@ tools:
     dependencies:
       system: []
       python: []
+    # Windows KiCad is a machine installer (UAC). Default: adopt an existing
+    # copy or print `plan kicad`. --force still tries winget/chocolatey.
+    install_policy:
+      windows: adopt_or_plan
     packages:
       linux:
         apt: ["kicad"]

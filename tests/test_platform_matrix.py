@@ -17,6 +17,8 @@ def test_build_pm_commands_cover_major_managers():
     assert build_pm_command("apt", ["ngspice"])[0:3] == ["sudo", "apt-get", "install"]
     assert "ngspice" in build_pm_command("brew", ["ngspice"])
     assert "--id" in build_pm_command("winget", ["Ngspice.Ngspice"])
+    user = build_pm_command("winget", ["KiCad.KiCad"], user_scope=True)
+    assert "--scope" in user and "user" in user
     assert build_pm_command("chocolatey", ["ngspice"])[0] == "choco"
     assert build_pm_command("dnf", ["kicad"])[1] == "dnf"
     assert build_pm_command("pacman", ["ghdl"])[1] == "pacman"
@@ -36,7 +38,7 @@ def test_ngspice_plan_has_windows_linux_darwin(tmp_path, monkeypatch):
     assert "portable_archive" in matrix["windows"]
     assert "apt" in matrix["linux"] or "dnf" in matrix["linux"]
     assert "brew" in matrix["darwin"]
-    # KiCad remains available via winget on Windows
+    # KiCad on Windows is adopt-or-plan; winget still appears in `plan`
     kicad = mgr.plan("kicad")[0]["matrix"]
     assert "winget" in kicad["windows"]
     assert "brew" in kicad["darwin"]

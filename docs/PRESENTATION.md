@@ -1,6 +1,6 @@
 # Presentation — eSim Automated Tool Manager
 
-Duration: about 4 minutes  
+Duration: about 2 minutes  
 Video: [`docs/demo/esim_toolmanager_demo.mp4`](demo/esim_toolmanager_demo.mp4)
 
 ---
@@ -15,7 +15,8 @@ Video: [`docs/demo/esim_toolmanager_demo.mp4`](demo/esim_toolmanager_demo.mp4)
    - `python -m pytest -q`  
    - `install demo-tool --force`  
    - `status demo-tool`  
-   - Ngspice install plan (Windows / Linux / macOS)  
+   - `plan ngspice` (Windows: portable archive, no admin)  
+   - `plan kicad` (Windows: adopt if present, else print plan — no UAC)  
    - `update --check`  
    - `configure demo-tool`  
    - `deps demo-tool`  

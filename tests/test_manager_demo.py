@@ -91,7 +91,93 @@ def test_ngspice_windows_without_matching_pm_is_honest(tmp_path, monkeypatch):
     if not result.already_present:
         assert "Ngspice.Ngspice" not in (result.message or "")
         assert result.method != "winget"
+        assert "archive" in str(result.method)
+        assert result.success is True
         assert result.message
+
+
+def test_ngspice_uses_archive_even_when_chocolatey_listed(tmp_path, monkeypatch):
+    """Portable archive is preferred so Windows Ngspice does not need admin."""
+    monkeypatch.setenv("ESIM_TM_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ESIM_TM_LOG_DIR", str(tmp_path / "logs"))
+    mgr = ToolManager(dry_run=True)
+    from esim_toolmanager.core.platform_utils import PlatformInfo
+    from esim_toolmanager.core.installer import ToolInstaller
+
+    mgr.platform = PlatformInfo(
+        system="windows",
+        release="11",
+        machine="AMD64",
+        available_package_managers=["chocolatey", "winget"],
+    )
+    mgr.installer = ToolInstaller(
+        mgr.tools,
+        dry_run=True,
+        config_handler=mgr.config_handler,
+        platform=mgr.platform,
+    )
+    result = mgr.install("ngspice")
+    if not result.already_present:
+        assert result.success is True
+        assert "archive" in str(result.method)
+        assert result.method != "chocolatey"
+
+
+def test_kicad_windows_adopts_or_plans_without_force(tmp_path, monkeypatch):
+    """Windows KiCad must not start winget unless --force (UAC)."""
+    monkeypatch.setenv("ESIM_TM_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ESIM_TM_LOG_DIR", str(tmp_path / "logs"))
+    mgr = ToolManager(dry_run=True)
+    from esim_toolmanager.core.platform_utils import PlatformInfo
+    from esim_toolmanager.core.installer import ToolInstaller
+
+    mgr.platform = PlatformInfo(
+        system="windows",
+        release="11",
+        machine="AMD64",
+        available_package_managers=["winget", "chocolatey"],
+    )
+    mgr.installer = ToolInstaller(
+        mgr.tools,
+        dry_run=True,
+        config_handler=mgr.config_handler,
+        platform=mgr.platform,
+    )
+    result = mgr.install("kicad")
+    if result.already_present:
+        assert result.success is True
+        assert result.method == "adopt-existing"
+        return
+    assert result.success is False
+    assert result.method == "manual"
+    assert "plan kicad" in result.message
+    assert "winget" not in str(result.method)
+
+
+def test_kicad_windows_force_still_previews_winget(tmp_path, monkeypatch):
+    monkeypatch.setenv("ESIM_TM_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ESIM_TM_LOG_DIR", str(tmp_path / "logs"))
+    mgr = ToolManager(dry_run=True)
+    from esim_toolmanager.core.platform_utils import PlatformInfo
+    from esim_toolmanager.core.installer import ToolInstaller
+
+    mgr.platform = PlatformInfo(
+        system="windows",
+        release="11",
+        machine="AMD64",
+        available_package_managers=["winget"],
+    )
+    mgr.installer = ToolInstaller(
+        mgr.tools,
+        dry_run=True,
+        config_handler=mgr.config_handler,
+        platform=mgr.platform,
+    )
+    result = mgr.install("kicad", force=True)
+    if not result.already_present:
+        assert result.success is True
+        assert "winget" in str(result.method)
+        assert "--scope" in " ".join(result.command or [])
 
 
 def test_force_reinstall_demo(mgr: ToolManager):

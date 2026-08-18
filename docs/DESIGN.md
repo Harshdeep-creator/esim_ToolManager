@@ -4,7 +4,7 @@
 |------|--------|
 | Project | Automated Tool Manager for eSim |
 | Task | eSim Semester Long Internship — Autumn 2026 — Screening Task 5 |
-| Version | 1.2.2 |
+| Version | 1.2.3 |
 | Language | Python 3.9+ |
 | Platforms | Windows, Linux, macOS |
 
@@ -32,6 +32,7 @@ This project defines and implements an Automated Tool Manager that:
 - Install, update, configure, and dependency-check workflows  
 - Package-manager integration where available  
 - Portable archive install for Ngspice on Windows  
+- KiCad on Windows: adopt an existing install, or print `plan kicad`  
 - CLI and GUI front ends  
 
 ### Out of scope
@@ -39,6 +40,7 @@ This project defines and implements an Automated Tool Manager that:
 - Replacing the official eSim installer end-to-end  
 - Building Ngspice or KiCad from source on every host  
 - Silent privilege escalation (sudo / UAC remain under OS control)  
+- A no-admin KiCad install on Windows (there is no portable KiCad build)  
 
 ---
 
@@ -70,7 +72,7 @@ Design choices:
 | Catalog in YAML | New tools and versions can be added without rewriting core logic |
 | Separate modules per concern | Installation, updates, configuration, and dependency checks stay independently testable |
 | Dry-run mode | Privileged package installs can be previewed safely |
-| Dual proof path | `demo-tool` exercises the full pipeline offline; Ngspice demonstrates a real external tool install |
+| Dual proof path | `demo-tool` is the guaranteed offline demo; Ngspice on Windows is a real portable install |
 
 ---
 
@@ -100,12 +102,13 @@ Design choices:
 
 1. Resolve the tool entry from `config/tools.yaml`.  
 2. Run an informational dependency check.  
-3. Select an install strategy:  
+3. Select an install strategy, in this order:  
    - `python-deps` → `pip`  
    - `local_bundle` → managed demo binary  
-   - existing compatible binary on the system → adopt and configure  
-   - OS package manager command when a matching manager is available  
-   - portable archive (Ngspice on Windows) when configured  
+   - existing compatible binary on the system → adopt and configure (skipped with `--force`)  
+   - portable archive when configured for this OS (Ngspice on Windows)  
+   - OS package manager, unless the catalog marks the tool `adopt_or_plan` on this OS (KiCad on Windows skips this unless `--force`)  
+   - otherwise print `plan <tool>` and the official download URL  
 4. Probe the installed version.  
 5. Apply configuration and write install state under `~/.esim_toolmanager/`.
 
@@ -149,7 +152,7 @@ Design choices:
 
 | Requirement | Implementation summary |
 |-------------|------------------------|
-| Tool Installation Management | Package managers, portable Ngspice archive, adopt-existing, version recording |
+| Tool Installation Management | demo-tool local bundle; Ngspice portable archive on Windows; adopt-existing; package managers; KiCad on Windows is adopt-or-plan |
 | Update and Upgrade System | Catalog comparison, remote PM queries, update apply path |
 | Configuration Handling | Env/PATH files, multi-shell activation, eSim bridge JSON |
 | Dependency Checker | Host + Python checks with user-visible feedback |
@@ -166,6 +169,7 @@ Design choices:
 | Binary search | PATH, Program Files, KiCad versioned bins | PATH, `/usr`, `/usr/local`, snap/flatpak exports | PATH, Homebrew prefixes, KiCad.app |
 | Activation | `activate.ps1`, `activate.bat` | `activate.sh` | `activate.sh` |
 | Install plan | `plan` lists commands for all three OS families on any host | same | same |
+| KiCad | Adopt if present; else `plan kicad`. `--force` may run winget (admin) | apt / dnf / pacman / flatpak | Homebrew cask |
 
 ---
 

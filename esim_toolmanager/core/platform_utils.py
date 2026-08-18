@@ -229,7 +229,7 @@ def detect_package_managers(system: Optional[str] = None) -> List[str]:
     found: List[str] = []
 
     if system == "windows":
-        ordered = [("winget", "winget"), ("choco", "chocolatey"), ("scoop", "scoop")]
+        ordered = [("scoop", "scoop"), ("winget", "winget"), ("choco", "chocolatey")]
         for cmd, name in ordered:
             if command_exists(cmd) and name not in found:
                 found.append(name)
@@ -293,7 +293,9 @@ def catalog_pm_key(pm: str) -> str:
     return mapping.get(pm, pm)
 
 
-def build_pm_command(pm: str, packages: List[str]) -> Optional[List[str]]:
+def build_pm_command(
+    pm: str, packages: List[str], *, user_scope: bool = False
+) -> Optional[List[str]]:
     """Build a package-manager install command (OS-agnostic helper)."""
     if not packages:
         return None
@@ -316,6 +318,8 @@ def build_pm_command(pm: str, packages: List[str]) -> Optional[List[str]]:
             "--accept-package-agreements",
             "--accept-source-agreements",
         ]
+        if user_scope:
+            cmd.extend(["--scope", "user"])
         for pkg in packages:
             cmd.extend(["--id", pkg, "-e"])
         return cmd

@@ -11,16 +11,20 @@ python -m esim_toolmanager install demo-tool --force
 python -m esim_toolmanager status demo-tool
 ```
 
-demo-tool is a tiny local binary the manager creates itself. No admin, no download. That is the reliable proof of install + version check. Ngspice/KiCad need winget, Chocolatey, apt, brew, or similar, so those can fail if your machine is locked down. Use `--dry-run` if you just want to see the command.
+demo-tool is a tiny local binary the manager creates itself. No admin, no download.
+
+For a real simulator on Windows, `install ngspice` unpacks the official portable .7z under ~/.esim_toolmanager. No admin, no Chocolatey.
+
+KiCad is different. There is no portable Windows build, so `install kicad` does not start winget. If KiCad is already on PATH it is adopted. If not, the command prints `plan kicad` and the official download page. Pass `--force` only if you have admin and want winget to run.
 
 Design write-up: [docs/DESIGN.md](docs/DESIGN.md)  
-Demo recording: [docs/demo/esim_toolmanager_demo.mp4](docs/demo/esim_toolmanager_demo.mp4)  
+Short demo (~2 min): [docs/demo/esim_toolmanager_demo.mp4](docs/demo/esim_toolmanager_demo.mp4)  
 Slide outline: [docs/PRESENTATION.md](docs/PRESENTATION.md)
 
 
 ## What it does
 
-- Install: package managers where they exist, portable Ngspice archive on Windows, or adopt a copy already on PATH
+- Install: demo-tool always, portable Ngspice archive on Windows, adopt a copy already on PATH, or a package manager. KiCad on Windows is adopt-or-plan (no UAC unless `--force`)
 - Version check: find the binary, parse `--version` / `-v`, compare with the catalog
 - Update: `update --check` then `update <tool>`
 - Configure: writes env/PATH files and shell helpers so eSim can pick the tools up
@@ -84,12 +88,19 @@ python -m esim_toolmanager install demo-tool --force
 python -m esim_toolmanager status demo-tool
 ```
 
-Ngspice if you want a real EDA tool. On Windows this may download the official portable archive. On Linux/macOS it uses the OS package manager. Add `--dry-run` to preview:
+Ngspice if you want a real EDA tool. On Windows this unpacks the official portable archive into your user folder (no admin). On Linux/macOS it uses the OS package manager. Add `--dry-run` to preview:
 
 ```
 python -m esim_toolmanager install ngspice --dry-run
 python -m esim_toolmanager install ngspice --force
 python -m esim_toolmanager status ngspice
+```
+
+KiCad on Windows is adopt-or-plan (no UAC). If it is missing, this prints the plan and the download page:
+
+```
+python -m esim_toolmanager install kicad
+python -m esim_toolmanager plan kicad
 ```
 
 The rest:
@@ -101,6 +112,7 @@ python -m esim_toolmanager deps demo-tool
 python -m esim_toolmanager list
 python -m esim_toolmanager plan ngspice
 python -m esim_toolmanager plan kicad
+python -m esim_toolmanager install kicad
 python -m esim_toolmanager doctor
 python -m esim_toolmanager log -n 40
 python -m esim_toolmanager verify
@@ -162,11 +174,11 @@ Also written: `esim_bridge.json` in the same folder. That is the file you would 
 
 ## Notes I hit while testing
 
-Ngspice on Windows: Chocolatey or Scoop if you have them, otherwise `ngspice-46_64.7z` from SourceForge. The downloader skips HTML junk pages and tries a couple of mirrors.
+Ngspice on Windows: portable `ngspice-46_64.7z` first (no admin). Chocolatey/Scoop are not required. The downloader skips HTML junk pages and tries a couple of mirrors.
 
 Ngspice on Linux/macOS: `plan ngspice` shows apt/dnf/pacman/zypper or `brew install ngspice`.
 
-KiCad and GHDL on Windows go through winget when winget is there (`KiCad.KiCad`, and a GHDL package id).
+KiCad on Windows: no portable build, so no silent no-admin install. `install kicad` adopts a copy already on PATH. If KiCad is missing it prints `plan kicad` and https://www.kicad.org/download/windows/. `--force` can run winget; that usually needs admin.
 
 `--dry-run` does not write package-manager installs into the state file.
 
@@ -182,7 +194,7 @@ Uninstall will not `apt remove` / `winget uninstall` system packages. It only dr
 ```
 README.md              this file
 docs/DESIGN.md         architecture
-docs/PRESENTATION.md   video outline
+docs/PRESENTATION.md   short demo outline
 docs/demo/             mp4 demo
 config/tools.yaml      versions, packages, paths
 esim_toolmanager/      source

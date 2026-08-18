@@ -138,6 +138,18 @@ class ToolInstaller:
             if adopted is not None:
                 return adopted
 
+        # Portable archive first when configured (Ngspice Windows .7z lives under
+        # ~/.esim_toolmanager — no admin / no winget / no Chocolatey).
+        archive_result = self._install_from_archive(tool_id, tool, force=force)
+        if archive_result is not None:
+            return archive_result
+
+        # KiCad on Windows has no portable build. Default is adopt-or-plan so
+        # a locked-down host never gets a UAC/winget prompt. --force still
+        # tries the package manager for machines that have admin.
+        if self._install_policy(tool) == "adopt_or_plan" and not force:
+            return self._manual_install_result(tool_id, tool)
+
         pm_result = self._install_via_package_manager(tool_id, tool)
         if pm_result is not None:
             if (
@@ -162,13 +174,21 @@ class ToolInstaller:
                 )
             return pm_result
 
-        # Portable archive fallback (e.g. official Ngspice Windows .7z)
-        archive_result = self._install_from_archive(tool_id, tool, force=force)
-        if archive_result is not None:
-            return archive_result
+        return self._manual_install_result(tool_id, tool)
 
+    def _install_policy(self, tool: Dict) -> str:
+        policy = tool.get("install_policy")
+        if isinstance(policy, dict):
+            return str(
+                policy.get(self.platform.system)
+                or policy.get("default")
+                or "auto"
+            )
+        return str(policy or "auto")
+
+    def _download_hint(self, tool: Dict) -> str:
         download = tool.get("download") or {}
-        hint = (
+        return (
             download.get(f"{self.platform.system}_url")
             or download.get(f"{self.platform.system}_note")
             or download.get("windows_url")
@@ -176,13 +196,29 @@ class ToolInstaller:
             or download.get("darwin_url")
             or "See tool documentation for your OS"
         )
-        # Include full matrix so lack of a PM is not a silent Windows-only dead end
+
+    def _manual_install_result(self, tool_id: str, tool: Dict) -> InstallResult:
+        hint = self._download_hint(tool)
+        name = tool.get("display_name", tool_id)
         matrix = install_plan_matrix(tool)
-        msg = (
-            f"No usable package manager for {tool_id} on {self.platform.system}. "
-            f"Manual/alternate options: {hint}. "
-            f"Planned commands by OS are available via: esim-tm plan {tool_id}"
-        )
+        if self._install_policy(tool) == "adopt_or_plan":
+            msg = (
+                f"{name} has no portable no-admin installer on {self.platform.system}. "
+                f"If it is already installed, this command adopts it. "
+                f"If not, install it yourself from {hint}, then re-run: "
+                f"esim-tm install {tool_id}. "
+                f"Preview commands: esim-tm plan {tool_id}. "
+                f"Package manager (usually needs admin): "
+                f"esim-tm install {tool_id} --force"
+            )
+        else:
+            msg = (
+                f"No automatic install for {name} on {self.platform.system}. "
+                f"{hint}. "
+                f"demo-tool needs no admin: esim-tm install demo-tool. "
+                f"Ngspice on Windows is a portable archive: esim-tm install ngspice. "
+                f"See: esim-tm plan {tool_id}"
+            )
         logger.error(msg)
         return InstallResult(
             tool_id=tool_id,
@@ -422,32 +458,46 @@ class ToolInstaller:
                 continue
             attempted += 1
 
+            # Prefer a per-user winget install so UAC is not required when the
+            # package supports --scope user. Fall back to the default command.
+            commands = [cmd]
+            if key == "winget":
+                user_cmd = build_pm_command(key, list(pkg_list), user_scope=True)
+                if user_cmd and user_cmd != cmd:
+                    commands = [user_cmd, cmd]
+
             if self.dry_run:
-                logger.info("[dry-run] Would run: %s", " ".join(cmd))
+                preview = commands[0]
+                logger.info("[dry-run] Would run: %s", " ".join(preview))
                 return InstallResult(
                     tool_id=tool_id,
                     success=True,
                     method=f"dry-run:{key}",
                     version=tool.get("preferred_version"),
                     install_path=str(self.install_root / tool_id),
-                    message=f"Dry-run: {' '.join(cmd)}",
-                    command=cmd,
+                    message=f"Dry-run: {' '.join(preview)}",
+                    command=preview,
                 )
 
-            logger.info("Installing via %s: %s", key, " ".join(cmd))
-            try:
-                result = run_command(cmd, timeout=900, check=False)
-            except Exception as exc:  # noqa: BLE001
-                logger.error("Package manager failed: %s", exc)
-                continue
-
-            if result.returncode != 0:
+            result = None
+            used_cmd = commands[0]
+            for used_cmd in commands:
+                logger.info("Installing via %s: %s", key, " ".join(used_cmd))
+                try:
+                    result = run_command(used_cmd, timeout=900, check=False)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("Package manager failed: %s", exc)
+                    result = None
+                    continue
+                if result.returncode == 0:
+                    break
                 logger.warning(
                     "%s install failed (code %s): %s",
                     key,
                     result.returncode,
                     (result.stderr or result.stdout or "")[:500],
                 )
+            if result is None or result.returncode != 0:
                 continue
 
             install_path = self.install_root / tool_id
@@ -483,7 +533,7 @@ class ToolInstaller:
                 version=version,
                 install_path=str(home),
                 message=msg,
-                command=cmd,
+                command=used_cmd,
             )
 
         # Dry-run preview: if no installed PM matches, still show the first
