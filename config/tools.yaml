@@ -1,0 +1,249 @@
+# eSim Automated Tool Manager — Tool Catalog
+# Defines supported external tools, preferred versions, package-manager
+# package names, detection commands, and dependencies.
+
+manager:
+  name: eSim Tool Manager
+  version: "1.2.2"
+  state_file: ".esim_tm_state.json"
+  log_dir: "logs"
+  install_root_env: "ESIM_TM_HOME"
+
+tools:
+  ngspice:
+    display_name: Ngspice
+    description: Analog / mixed-signal SPICE simulation engine used by eSim
+    category: simulation
+    required: true
+    preferred_version: "46"
+    min_version: "36"
+    binaries:
+      - ngspice
+      - ngspice_con
+    version_args: ["-v"]
+    version_regex: "(?:ngspice|Ngspice)[^0-9]*([0-9]+(?:\\.[0-9]+)*)"
+    dependencies:
+      system: []
+      python: []
+    packages:
+      linux:
+        apt: ["ngspice"]
+        dnf: ["ngspice"]
+        pacman: ["ngspice"]
+        zypper: ["ngspice"]
+      windows:
+        # Ngspice is not currently published on winget; use Chocolatey/Scoop or manual URL.
+        chocolatey: ["ngspice"]
+        scoop: ["ngspice"]
+      darwin:
+        brew: ["ngspice"]
+    search_paths:
+      windows:
+        - "C:/Program Files/Ngspice/bin"
+        - "C:/Program Files/ngspice/bin"
+      linux:
+        - "/usr/bin"
+        - "/usr/local/bin"
+      darwin:
+        - "/opt/homebrew/bin"
+        - "/usr/local/bin"
+    download:
+      # Official source / release pages used when package managers are unavailable
+      windows_url: "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/46/"
+      linux_url: "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
+      darwin_url: "https://formulae.brew.sh/formula/ngspice"
+      linux_note: "Prefer apt/dnf/pacman/zypper packages"
+      darwin_note: "Prefer Homebrew: brew install ngspice"
+      # Portable Windows binary (no admin / no winget package required)
+      windows_archive:
+        # Direct mirror first (avoids SourceForge HTML interstitial). Fallbacks follow.
+        url: "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/46/ngspice-46_64.7z"
+        urls:
+          - "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/46/ngspice-46_64.7z"
+          - "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/46/ngspice-46_64.7z/download"
+          - "https://newcontinuum.dl.sourceforge.net/project/ngspice/ng-spice-rework/46/ngspice-46_64.7z"
+        version: "46"
+        binary_relative: "Spice64/bin/ngspice.exe"
+        path_append:
+          - "{install_path}/Spice64/bin"
+          - "{install_path}/bin"
+    config:
+      env_vars:
+        NGSPICE_HOME: "{install_path}"
+      path_append: ["{install_path}/bin", "{install_path}"]
+
+  kicad:
+    display_name: KiCad
+    description: Schematic capture and PCB layout editor integrated with eSim
+    category: eda
+    required: true
+    preferred_version: "8.0"
+    min_version: "6.0"
+    binaries:
+      - kicad
+      - eeschema
+      - pcbnew
+    version_args: ["--version"]
+    version_regex: "([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)"
+    dependencies:
+      system: []
+      python: []
+    packages:
+      linux:
+        apt: ["kicad"]
+        dnf: ["kicad"]
+        pacman: ["kicad"]
+        flatpak: ["org.kicad.KiCad"]
+      windows:
+        winget: ["KiCad.KiCad"]
+        chocolatey: ["kicad"]
+      darwin:
+        brew: ["--cask", "kicad"]
+    search_paths:
+      windows:
+        - "C:/Program Files/KiCad/8.0/bin"
+        - "C:/Program Files/KiCad/7.0/bin"
+        - "C:/Program Files/KiCad/9.0/bin"
+      linux:
+        - "/usr/bin"
+        - "/usr/local/bin"
+      darwin:
+        - "/Applications/KiCad/KiCad.app/Contents/MacOS"
+        - "/opt/homebrew/bin"
+        - "/usr/local/bin"
+    download:
+      windows_url: "https://www.kicad.org/download/windows/"
+      linux_url: "https://www.kicad.org/download/linux/"
+      darwin_url: "https://www.kicad.org/download/macos/"
+    config:
+      env_vars:
+        KICAD_HOME: "{install_path}"
+      path_append: ["{install_path}/bin", "{install_path}"]
+
+  ghdl:
+    display_name: GHDL
+    description: VHDL simulator used by eSim NGHDL mixed-signal flow
+    category: hdl
+    required: false
+    preferred_version: "4.1.0"
+    min_version: "2.0.0"
+    binaries:
+      - ghdl
+    version_args: ["--version"]
+    version_regex: "GHDL\\s+([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)"
+    dependencies:
+      system: []
+      python: []
+    packages:
+      linux:
+        apt: ["ghdl"]
+        dnf: ["ghdl"]
+        pacman: ["ghdl"]
+      windows:
+        winget: ["ghdl.ghdl.ucrt64.mcode"]
+        chocolatey: ["ghdl"]
+      darwin:
+        brew: ["ghdl"]
+    config:
+      env_vars:
+        GHDL_HOME: "{install_path}"
+      path_append: ["{install_path}/bin", "{install_path}"]
+
+  verilator:
+    display_name: Verilator
+    description: Verilog HDL simulator / model generator used with Makerchip / NgVeri
+    category: hdl
+    required: false
+    preferred_version: "5.020"
+    min_version: "4.000"
+    binaries:
+      - verilator
+    version_args: ["--version"]
+    version_regex: "Verilator\\s+([0-9]+\\.[0-9]+)"
+    dependencies:
+      system: []
+      python: []
+    packages:
+      linux:
+        apt: ["verilator"]
+        dnf: ["verilator"]
+        pacman: ["verilator"]
+      windows:
+        chocolatey: ["verilator"]
+      darwin:
+        brew: ["verilator"]
+    config:
+      env_vars: {}
+      path_append: ["{install_path}/bin"]
+
+  python-deps:
+    display_name: eSim Python Dependencies
+    description: Core Python packages required by eSim (PyQt6, numpy, matplotlib, scipy, ...)
+    category: python
+    required: true
+    preferred_version: "esim-2.5"
+    min_version: "esim-2.5"
+    version_source: python_deps
+    binaries: []
+    version_args: []
+    version_regex: ""
+    notes: >
+      Official pins match eSim 2.5 (Python 3.10/3.11). On Python 3.12+ the
+      manager automatically uses python_compat specs so install/deps do not
+      fail just because numpy==1.24.4 / scipy==1.10.1 have no 3.12 wheels.
+    dependencies:
+      system: []
+      python:
+        - "PyQt6>=6.5.0"
+        - "matplotlib==3.7.5"
+        - "numpy==1.24.4"
+        - "scipy==1.10.1"
+        - "pillow>=10.0.0"
+        - "hdlparse==1.0.4"
+        - "watchdog==4.0.2"
+        - "pyparsing==3.1.4"
+      python_compat:
+        - "PyQt6>=6.5.0"
+        - "matplotlib>=3.8.0"
+        - "numpy>=1.26.0"
+        - "scipy>=1.11.0"
+        - "pillow>=10.0.0"
+        - "hdlparse==1.0.4"
+        - "watchdog==4.0.2"
+        - "pyparsing==3.1.4"
+    packages:
+      linux: {}
+      windows: {}
+      darwin: {}
+    config:
+      env_vars: {}
+      path_append: []
+
+  demo-tool:
+    display_name: Demo Tool (Proof of Concept)
+    description: >
+      Lightweight cross-platform demo artifact used to exercise download,
+      install, version-check, configure, and uninstall flows without needing
+      large EDA packages. Safe for screening demos.
+    category: demo
+    required: false
+    preferred_version: "1.0.0"
+    min_version: "1.0.0"
+    binaries:
+      - esim-demo-tool
+    version_args: ["--version"]
+    version_regex: "([0-9]+\\.[0-9]+\\.[0-9]+)"
+    dependencies:
+      system: []
+      python: []
+    packages:
+      linux: {}
+      windows: {}
+      darwin: {}
+    download:
+      # Installed locally by the manager (no external network required for demo)
+      local_bundle: true
+    config:
+      env_vars:
+        ESIM_DEMO_TOOL_HOME: "{install_path}"
+      path_append: ["{install_path}"]
